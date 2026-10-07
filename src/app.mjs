@@ -298,7 +298,7 @@ async function load(getBuffer, filename) {
   const failed = message => { worker?.terminate(); worker = null; $('busy').hidden = true; $('filemeta').textContent = '読み込みできませんでした'; document.body.dataset.state = 'error'; toast(`読み込み失敗：${message}`, true); };
   try {
     const buffer = await getBuffer(); if (requestId !== token) return;
-    worker = new Worker(new URL('./worker.mjs', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.mjs?v=0.3.2', import.meta.url), { type: 'module' });
     worker.onerror = () => { if (requestId === token) failed('解析処理を起動できません。ChromeまたはEdgeでページを再読み込みしてください。'); };
     worker.onmessage = ({ data }) => {
       if (requestId !== token) return;

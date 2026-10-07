@@ -7,6 +7,22 @@ const one=(a,t)=>{const ids=a.get(t);if(ids?.length!==1)throw Error('関連す�
 function values(b,p,n){if(p+n*8>odbEnd(b))throw Error('部材寸法の範囲が不正です');const v=new DataView(b.buffer,b.byteOffset,b.byteLength),out=Array.from({length:n},(_,i)=>v.getFloat64(p+i*8,true));if(out.some(x=>!Number.isFinite(x)||Math.abs(x)>1e7))throw Error('部材寸法が不正です');return out;}
 function library(r,records,a){const id=one(a,r.cls===CLASSES.window?'461c2f67f364f5418a4affdfd86bcbfd':'3e459f182eea384eafe9660d1d25afc6'),lib=records.get(id);if(lib?.cls!==CLASSES.lib)throw Error('部品ライブラリ参照が不正です');const link=associations(lib.data),param=records.get(one(link,'588778494a52594789accec113bc37f1'));if(!param)throw Error('部品寸法設定が見つかりません');return {library:stringAt(lib.data,85).text,main:hex(lib.data.subarray(51,67)),revision:hex(lib.data.subarray(67,83)),params:parameters(param.data)};}
 function polygon(b,p){const end=odbEnd(b);if(hex(b.subarray(p,p+2))!=='0201'||u16(b,p+7)!==31)throw Error('壁輪郭の形式が不正です');const limit=p+6+u32(b,p+2),n=u32(b,p+41),arcs=u32(b,p+45),nc=u32(b,p+49);if(limit>end||n>100000||arcs||nc>1||n&&n<4)throw Error('曲線・複数輪郭の壁は未対応です');if(!n)return {flat:[],next:limit};const ep=p+53+(n+1)*16;if(ep+8>limit||u32(b,ep)!==0||u32(b,ep+4)!==n)throw Error('壁輪郭の頂点数が一致しません');const coords=values(b,p+69,n*2);if(Math.hypot(coords[0]-coords.at(-2),coords[1]-coords.at(-1))>1e-7)throw Error('壁の輪郭が閉じていません');return {flat:coords.slice(0,-2),next:limit};}
+function wallFootprint(r,records,a){
+  const ids=a.get(VRD);
+  if(!ids?.length||new Set(ids).size!==ids.length)throw Error('壁輪郭の参照が不正です');
+  const candidates=ids.map(id=>{
+    const cache=records.get(id);
+    if(cache?.cls!==CLASSES.vrd||one(associations(cache.data),VRD)!==r.guid)throw Error('壁輪郭との関連が一致しません');
+    const first=polygon(cache.data,46),second=polygon(cache.data,first.next);
+    return {flat:second.flat.length?second.flat:first.flat,joined:!!second.flat.length};
+  });
+  // A wall may retain identical contours for multiple saved view contexts.
+  // Check every live cache and its parent; never select an arbitrary conflicting contour.
+  const chosen=candidates[0];
+  if(!chosen.flat.length)throw Error('壁輪郭に有効な頂点がありません');
+  if(candidates.some(c=>c.flat.length!==chosen.flat.length||c.flat.some((v,i)=>Math.abs(v-chosen.flat[i])>1e-7)))throw Error('複数の壁輪郭が一致しません');
+  return chosen;
+}
 function trimX(flat,bound,less){const pts=[];for(let i=0;i<flat.length;i+=2)pts.push(flat.slice(i,i+2));const out=[];for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length],inside=p=>less?p[0]<=bound+1e-9:p[0]>=bound-1e-9;if(inside(a))out.push(a);if(inside(a)!==inside(b))out.push([bound,a[1]+(b[1]-a[1])*(bound-a[0])/(b[0]-a[0])]);}return out.flat();}
 export function wallGeometry(w,openings=[]){const zs=[w.base,w.base+w.height,...openings.flatMap(o=>[Math.max(w.base,o.bottom),Math.min(w.base+w.height,o.bottom+o.height)])].filter(z=>z>=w.base&&z<=w.base+w.height).sort((a,b)=>a-b),unique=[...new Set(zs)],shapes=[];let min=Infinity,max=-Infinity;for(let i=0;i<w.footprint.length;i+=2){min=Math.min(min,w.footprint[i]);max=Math.max(max,w.footprint[i]);}
   for(let j=0;j<unique.length-1;j++){const low=unique[j],high=unique[j+1];if(high-low<1e-9)continue;const gaps=openings.filter(o=>o.bottom<(low+high)/2&&o.bottom+o.height>(low+high)/2).map(o=>[o.center-o.width/2,o.center+o.width/2]).sort((a,b)=>a[0]-b[0]);let first=min;for(const[a,b]of [...gaps,[max,max]]){const last=Math.min(a,max);if(last-first>1e-9){const poly=trimX(trimX(w.footprint,first,false),last,true);if(poly.length>=6)shapes.push(prism([poly],low,high));}first=Math.max(first,b);}}
@@ -14,7 +30,7 @@ export function wallGeometry(w,openings=[]){const zs=[w.base,w.base+w.height,...
 }
 export function readElements(records){const walls=new Map(),parts=[],failures=[],warnings=[];let excluded=0;
   for(const r of records.values())if(r.cls===CLASSES.wall){try{const a=associations(r.data);if(!a.has(FLOOR))continue;const info=elementInfo(r.data,r.cls,'wall'),p=info.after,b=r.data,[x,y,ex,ey]=values(b,p,4),length=Math.hypot(ex-x,ey-y),thickness=values(b,p+77,1)[0],height=values(b,p+153,1)[0],base=values(b,p+161,1)[0];if(length<1e-8||thickness<=0||height<=0||Math.abs(values(b,p+85,1)[0]-thickness)>1e-8||values(b,p+93,1)[0]!==0||b[p+76]!==1)throw Error('傾斜・曲線・特殊な壁は未対応です');const ux=(ex-x)/length,uy=(ey-y)/length,matrix=[ux,uy,0,x,uy,-ux,0,y,0,0,1,0];let footprint=[0,0,length,0,length,thickness,0,thickness],joined=false;
-    if(a.has(VRD)){const cache=records.get(one(a,VRD));if(cache?.cls!==CLASSES.vrd||one(associations(cache.data),VRD)!==r.guid)throw Error('壁輪郭との関連が一致しません');const first=polygon(cache.data,46),second=polygon(cache.data,first.next);const chosen=second.flat.length?second:first;footprint=[];for(let i=0;i<chosen.flat.length;i+=2){const px=chosen.flat[i]-x,py=chosen.flat[i+1]-y;footprint.push(px*ux+py*uy,px*uy-py*ux);}joined=!!second.flat.length;}
+    if(a.has(VRD)){const chosen=wallFootprint(r,records,a);footprint=[];for(let i=0;i<chosen.flat.length;i+=2){const px=chosen.flat[i]-x,py=chosen.flat[i+1]-y;footprint.push(px*ux+py*uy,px*uy-py*ux);}joined=chosen.joined;}
     walls.set(r.guid,{id:r.guid,name:info.text,kind:'wall',floor:one(a,FLOOR),length,thickness,height,base,matrix,footprint,joined,openings:[]});
   }catch(e){failures.push({id:r.guid,message:e.message});}}
   for(const r of records.values())if([CLASSES.window,CLASSES.object].includes(r.cls)){try{const a=associations(r.data),window=r.cls===CLASSES.window,fl=window?WFLOOR:FLOOR;if(!a.has(fl))continue;const info=elementInfo(r.data,r.cls,window?'window':'object'),lib=library(r,records,a);if(/植栽|樹木|下草|観葉|落葉樹|常緑樹/.test(lib.library)){excluded++;continue;}

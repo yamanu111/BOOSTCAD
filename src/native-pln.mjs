@@ -2,9 +2,9 @@
 // Source coordinates are meters with Z up. No CAD executable or export is used.
 import { expandHeap, allocations, payload, u16, u32, hex } from './rof.mjs';
 import earcut from '../vendor/earcut.js';
-import {readElements} from './elements.mjs';
+import {readElements} from './elements.mjs?v=0.3.2';
 
-export const READER_VERSION = 'native-0.2.0';
+export const READER_VERSION = 'native-0.2.1';
 const C = {
   mesh: '46ee2f8f3f6aac41a32b69e44dc6276d',
   terrain: 'b898e0c2e9a8bb4696c57200ead406f5',

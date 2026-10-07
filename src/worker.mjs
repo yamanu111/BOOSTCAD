@@ -1,4 +1,4 @@
-import { readPLN } from './native-pln.mjs';
+import { readPLN } from './native-pln.mjs?v=0.3.2';
 import { completeBrowserModel } from './browser-model.mjs';
 self.onmessage = ({ data }) => {
   try {
