@@ -1,0 +1,2 @@
+# JavaScript modules need a JavaScript MIME type on Apache-based hosts.
+AddType text/javascript .mjs

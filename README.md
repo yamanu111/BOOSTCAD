@@ -1,6 +1,6 @@
 # BOOSTCAD
 
-[サイトを開く](https://yamanu111.github.io/BOOSTCAD/) · [操作確認用デモ](https://yamanu111.github.io/BOOSTCAD/?demo=1)
+[サイトを開く](https://ikujyuentools.work/boostcad/) · [操作確認用デモ](https://ikujyuentools.work/boostcad/?demo=1) · [GitHub Pages版](https://yamanu111.github.io/BOOSTCAD/)
 
 RIKCADのPLNをブラウザー内で直接読み、3D表示・長さ・高低差を確認する試作ツールです。利用者側にNode.jsやRIKCADのインストールは不要です。
 
@@ -40,6 +40,8 @@ npm run preview
 GitHubで公開リポジトリ `BOOSTCAD` を作成し、このフォルダーの内容をmainブランチへpushします。Settings → Pages → Sourceで **GitHub Actions** を選択すると、付属のワークフローが検証後に `dist/` を公開します。通常の公開URLは `https://アカウント名.github.io/BOOSTCAD/` です。既存のツール一覧ページにはこのURLを登録できます。
 
 公開対象はビルドスクリプトで指定するHTML/CSS/JSとライセンスのみです。顧客PLN・商用部品ライブラリをリポジトリへ追加しないでください。
+
+独自ドメイン版はConoHa WINGの `/public_html/ikujyuentools.work/boostcad/` に配置しています。更新時は `npm run build` で作成した `dist/` の内容をこのフォルダーへアップロードします。付属の `.htaccess` はApacheで `.mjs` をJavaScriptとして配信するための設定です。GitHubへのpushはGitHub Pages版を更新し、ConoHa側の更新には別途アップロードが必要です。
 
 ## ライセンス
 

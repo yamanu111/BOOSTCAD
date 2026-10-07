@@ -9,7 +9,7 @@ if (path.dirname(destination) !== path.resolve(root) || path.basename(destinatio
 await rm(destination, { recursive: true, force: true });
 await mkdir(destination);
 export const publishedFiles = [
-  'index.html', 'styles.css', '.nojekyll', 'LICENSE', 'THIRD_PARTY_NOTICES.md',
+  'index.html', 'styles.css', '.nojekyll', '.htaccess', 'LICENSE', 'THIRD_PARTY_NOTICES.md',
   ...['app', 'worker', 'browser-model', 'demo-model', 'native-pln', 'rof', 'odb', 'elements', 'solid',
     'measurement', 'measurement-session', 'measurement-overlay', 'elevation-session', 'elevation-overlay', 'view-camera'].map(n => `src/${n}.mjs`),
   ...['three.module.js', 'three.core.js', 'OrbitControls.js', 'earcut.js', 'LICENSE', 'EARCUT-LICENSE'].map(n => `vendor/${n}`)
