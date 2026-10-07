@@ -1,0 +1,8 @@
+dist/
+node_modules/
+private/
+test-results/
+*.pln
+*.pla
+*.gsm
+*.lcf

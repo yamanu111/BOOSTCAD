@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>BOOSTCAD — PLNクイックビュー</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23126b5c'/%3E%3Ctext x='16' y='24' text-anchor='middle' fill='white' font-size='24' font-family='sans-serif'%3EB%3C/text%3E%3C/svg%3E">
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+  <header class="app-header">
+    <a class="brand" href="./" aria-label="BOOSTCAD ホーム"><span class="brand-mark">B</span>BOOST<span>CAD</span></a>
+    <span class="tag">PLN DIRECT <span class="tag-dot"></span> ブラウザー版 v0.3.0</span>
+    <span class="private-label">● PLNはブラウザー内で処理</span>
+  </header>
+  <div class="file-bar">
+    <button id="open" class="primary"><span>＋</span> PLNを開く</button>
+    <input id="file" type="file" accept=".pln" hidden>
+    <div class="file-info"><strong id="filename">ファイルが選択されていません</strong><small id="filemeta">RIKCADのプランファイルを直接読み込みます</small></div>
+    <button id="sample" class="quiet">デモを開く</button>
+    <span id="loadtime" class="load-time"></span>
+  </div>
+  <main>
+    <aside class="sidebar">
+      <section>
+        <div class="section-title">操作 <span>01</span></div>
+        <div class="segmented"><button id="orbit" class="selected" aria-pressed="true">↻ ビュー</button><button id="measure" aria-pressed="false">↔ 2点計測</button><button id="elevation" aria-pressed="false">↕ 高低差</button></div>
+        <p id="instruction" class="muted">ドラッグで回転。ホイールで拡大。<br>右ドラッグで移動できます。</p>
+      </section>
+      <section class="measurement-section">
+        <div class="section-title">計測結果 <select id="unit" aria-label="計測単位"><option value="mm">mm</option><option value="m">m</option></select></div>
+        <div id="length-details">
+        <div class="main-metric"><span id="distance-caption">2点間の距離</span><strong id="distance">—</strong><small class="unit-label">mm</small></div>
+        <div class="metric-row"><span>水平距離</span><strong id="horizontal">—</strong><small class="unit-label">mm</small></div>
+        <div class="metric-row"><span>高低差</span><strong id="height">—</strong><small class="unit-label">mm</small></div>
+        <div class="point" id="point-a"><span class="point-dot" aria-hidden="true"></span><div><strong>始点を選択</strong><small>モデル上をクリック</small></div></div>
+        <div class="point" id="point-b"><span class="point-dot second" aria-hidden="true"></span><div><strong>終点を選択</strong><small>モデル上をクリック</small></div></div>
+        </div>
+        <div id="elevation-details" hidden>
+          <div class="main-metric"><span>基準点からの高低差</span><strong id="elevation-delta">—</strong><small class="unit-label">mm</small></div>
+          <p id="elevation-direction" class="elevation-direction">最初に基準点をクリック</p>
+          <div class="point" id="elevation-reference"><span class="point-dot reference-dot" aria-hidden="true"></span><div><strong>基準点を選択</strong><small>この点を ±0 として測ります</small></div></div>
+          <div class="point" id="elevation-point"><span class="point-dot" aria-hidden="true"></span><div><strong>計測点を選択</strong><small>続けて何点でも選択できます</small></div></div>
+        </div>
+        <label class="check"><input id="snap" type="checkbox" checked> 頂点にスナップ <small>12 px</small></label>
+        <div class="button-pair"><button id="undo" disabled>1点戻す</button><button id="clear" disabled>一括クリア</button></div>
+        <p id="measure-note" class="micro">保存座標で計測します。異なるフロア間の高低差は計測できません。</p>
+        <div class="measurement-history">
+          <div class="section-title">保存した計測 <span id="measurement-count">0</span></div>
+          <p id="measurement-empty" class="micro">計測するとここに追加されます。</p>
+          <ol id="measurement-list" aria-label="保存した計測"></ol>
+        </div>
+      </section>
+      <section>
+        <div class="section-title">表示する形状 <span id="object-count">0</span></div>
+        <label class="check"><input type="checkbox" data-layer="terrain" checked><i class="swatch terrain"></i> 地形の上面 <small id="terrain-count">0</small></label>
+        <label class="check"><input type="checkbox" data-layer="slab" checked><i class="swatch slab"></i> スラブの基本形状 <small id="slab-count">0</small></label>
+        <label class="check"><input type="checkbox" data-layer="morph" checked><i class="swatch morph"></i> モーフ <small id="morph-count">0</small></label>
+        <label class="check"><input type="checkbox" data-layer="wall" checked><i class="swatch wall"></i> 壁 <small id="wall-count">0</small></label>
+        <label class="check"><input type="checkbox" data-layer="window" checked><i class="swatch window"></i> 窓開口の寸法面 <small id="window-count">0</small></label>
+        <label class="check"><input type="checkbox" data-layer="product" disabled><i class="swatch product"></i> メーカー部品（未対応） <small id="product-count">0</small></label>
+        <label class="check"><input id="edges" type="checkbox" checked> 輪郭線を表示</label>
+      </section>
+      <section class="coverage">
+        <div class="coverage-title">◐ 一部形状に対応した試作版</div>
+        <p id="coverage-summary">地形・スラブ・モーフ・壁・窓開口の保存寸法に対応します。メーカー部品・植栽は表示しません。</p>
+        <div id="missing-parts" class="missing-parts" hidden></div>
+        <details><summary>読み込みの詳細</summary><div id="coverage-detail">PLNを選択すると復元結果を表示します。</div></details>
+        <p class="micro">寸法のRIKCADとの照合は未実施です。工事用の確定寸法には、照合が必要です。</p>
+      </section>
+    </aside>
+    <section class="viewport" id="viewport" aria-label="3Dモデルビュー">
+      <div id="canvas-host"></div>
+      <div class="partial-notice">◐ 部分表示：窓は開口寸法のみ／メーカー部品・植栽・屋根は対象外</div>
+      <div class="view-toolbar"><button data-view="iso" title="斜めから見る" class="selected" aria-pressed="true">3D</button><button data-view="top" title="真上からのオルソ表示・平面距離で計測" aria-pressed="false">平面図</button><button data-view="front" aria-pressed="false">正面</button><button id="fit" title="表示中の形状全体を表示">全体表示</button></div>
+      <div id="empty" class="empty-state">
+        <div class="empty-icon">◇</div><div class="eyebrow">OPEN YOUR PLAN</div><h1>プランを、すぐ手元に。</h1>
+        <p>ここに .pln ファイルをドロップ<br>3Dで確認して、2点を選んで計測。</p>
+        <button id="empty-open" class="primary">PLNファイルを選択</button>
+        <small>変換・書き出し操作は不要。データは外部に送信しません。</small>
+      </div>
+      <div id="busy" class="busy" hidden><div class="spinner"></div><strong id="progress">読み込み中</strong><button id="cancel">中止</button></div>
+      <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+      <svg id="measurement-overlay" aria-hidden="true"></svg>
+      <div id="measurement-labels" aria-hidden="true"></div>
+      <div class="view-footer"><span id="scene-status">モデル未読み込み</span><span>保存座標 / m <b>・</b> Z 上方向</span></div>
+    </section>
+  </main>
+  <script type="module" src="src/app.mjs"></script>
+</body>
+</html>
