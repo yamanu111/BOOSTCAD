@@ -1,5 +1,7 @@
 # BOOSTCAD
 
+[サイトを開く](https://yamanu111.github.io/BOOSTCAD/) · [操作確認用デモ](https://yamanu111.github.io/BOOSTCAD/?demo=1)
+
 RIKCADのPLNをブラウザー内で直接読み、3D表示・長さ・高低差を確認する試作ツールです。利用者側にNode.jsやRIKCADのインストールは不要です。
 
 サイトを開いて「PLNを開く」でファイルを選択するか、表示領域へドロップしてください。「デモを開く」では自作の操作確認用形状を表示します。PLNはWeb Worker内で処理し、サーバーへ送信しません。外部ライブラリCDNや解析サービスも使いません。
